@@ -32,5 +32,9 @@
     <sharedNum:KeyboardAndScrollExample />
     <Rectangle Style="{StaticResource PageSectionSeparator}" />
     <sharedNum:OverrideButtonsExample />
+    <Rectangle Style="{StaticResource PageSectionSeparator}" />
+    <sharedNum:UpdateSourceModeExample />
+    <Rectangle Style="{StaticResource PageSectionSeparator}" />
+    <sharedNum:HexExample />
   </StackPanel>
 </UserControl>

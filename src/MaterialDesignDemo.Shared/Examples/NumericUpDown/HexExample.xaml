@@ -1,0 +1,53 @@
+﻿<UserControl x:Class="MaterialDesignDemo.Shared.Examples.NumericUpDown.HexExample"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:local="clr-namespace:MaterialDesignDemo.Shared.Examples.NumericUpDown"
+             xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:smtx="clr-namespace:ShowMeTheXAML;assembly=ShowMeTheXAML"
+             d:DesignHeight="450"
+             d:DesignWidth="800" x:Name="root"
+             mc:Ignorable="d">
+  <materialDesign:Card Padding="16">
+    <StackPanel>
+      <TextBlock Margin="0,0,0,8"
+                 Style="{StaticResource MaterialDesignHeadline6TextBlock}"
+                 Text="HexExample" />
+
+      <TextBlock Margin="0,0,0,16"
+                 Text="Hex"
+                 TextWrapping="Wrap" />
+
+      <WrapPanel Margin="0,0,0,8">
+        <StackPanel Margin="8">
+          <TextBlock Text="HexByte" />
+          <smtx:XamlDisplay UniqueKey="NumericUpDown_HexExample_1">
+
+            <materialDesign:HexByteUpDown Width="120" SelectAllOnFocus="True"
+                                          ValueStep="1"
+                                          Value="14" />
+          </smtx:XamlDisplay>
+        </StackPanel>
+        <StackPanel Margin="8">
+          <TextBlock Text="HexUInt" />
+          <smtx:XamlDisplay UniqueKey="NumericUpDown_HexExample_2">
+
+            <materialDesign:HexUintUpDown Width="120" DecimalPlaces="8" SelectAllOnFocus="True"
+                                          ValueStep="1"
+                                          Value="14" />
+          </smtx:XamlDisplay>
+        </StackPanel>
+        <StackPanel Margin="8">
+          <TextBlock Text="HexShort" />
+          <smtx:XamlDisplay UniqueKey="NumericUpDown_HexExample_3">
+
+            <materialDesign:HexShortUpDown Width="120" DecimalPlaces="4" SelectAllOnFocus="True"
+                                          ValueStep="1"
+                                          Value="14" />
+          </smtx:XamlDisplay>
+        </StackPanel>
+      </WrapPanel>
+    </StackPanel>
+  </materialDesign:Card>
+</UserControl>

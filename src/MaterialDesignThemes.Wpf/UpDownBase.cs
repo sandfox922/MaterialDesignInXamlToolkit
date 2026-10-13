@@ -47,7 +47,7 @@ public class UpDownBase<T, TArithmetic> : UpDownBase
     private static int Compare(T value1, T value2) => _arithmetic.Compare(value1, value2);
 #endif
 
-    private bool _isTextChanging;
+    private bool _isTextChanged;
 
     #region DependencyProperties
 
@@ -118,9 +118,9 @@ public class UpDownBase<T, TArithmetic> : UpDownBase
         };
         upDownBase.RaiseEvent(args);
 
-        if (!upDownBase._isTextChanging && upDownBase._textBoxField is { } textBox)
+        if (upDownBase._textBoxField is { } textBox)
         {
-            textBox.Text = Convert.ToString(e.NewValue, CultureInfo.CurrentCulture);
+            textBox.Text = upDownBase.FormatValue((T)e.NewValue);
         }
 
         upDownBase.UpdateDecreaseButtonEnabled();
@@ -182,6 +182,55 @@ public class UpDownBase<T, TArithmetic> : UpDownBase
 
     #endregion
 
+    #region DependencyProperty : SelectAllOnFocus
+    public bool SelectAllOnFocus
+    {
+        get => (bool)GetValue(SelectAllOnFocusProperty);
+        set => SetValue(SelectAllOnFocusProperty, value);
+    }
+
+    public static readonly DependencyProperty SelectAllOnFocusProperty =
+        DependencyProperty.Register(nameof(SelectAllOnFocus), typeof(bool), SelfType, new PropertyMetadata(false));
+    #endregion
+
+    #region DependencyProperty : DecimalPlaces
+    public int DecimalPlaces
+    {
+        get => (int)GetValue(DecimalPlacesProperty);
+        set => SetValue(DecimalPlacesProperty, value);
+    }
+
+    public static readonly DependencyProperty DecimalPlacesProperty =
+        DependencyProperty.Register(nameof(DecimalPlaces), typeof(int), SelfType, new PropertyMetadata(-1, OnDecimalPlacesChanged, OnCoerceDecimalPlaces));
+
+    private static void OnDecimalPlacesChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+    {
+        d.CoerceValue(ValueProperty);
+
+        var upDownBase = ToUpDownBase(d);
+        upDownBase.UpdateValue();
+    }
+
+    private static object OnCoerceDecimalPlaces(DependencyObject d, object baseValue)
+    {
+        int value = (int)baseValue;
+        if (value > 28) return 28;
+        return value;
+    }
+    #endregion
+
+    #region DependencyProperty : Hexadecimal
+    protected bool Hexadecimal
+    {
+        get => (bool)GetValue(HexadecimalProperty);
+        set => SetValue(HexadecimalProperty, value);
+    }
+
+    protected static readonly DependencyProperty HexadecimalProperty =
+        DependencyProperty.Register(nameof(Hexadecimal), typeof(bool), SelfType, new PropertyMetadata(false));
+
+    #endregion
+
     #endregion DependencyProperties
 
     #region Event : ValueChangedEvent
@@ -207,6 +256,9 @@ public class UpDownBase<T, TArithmetic> : UpDownBase
         }
         if (_textBoxField != null)
         {
+            _textBoxField.GotKeyboardFocus -= OnTextBoxGotKeyboardFocus;
+            _textBoxField.PreviewMouseDown -= OnTextBoxPreviewMouseDown;
+            _textBoxField.PreviewTextInput -= OnTextBoxPreviewTextInput;
             _textBoxField.TextChanged -= OnTextBoxTextChanged;
             _textBoxField.LostFocus -= OnTextBoxLostFocus;
         }
@@ -227,41 +279,183 @@ public class UpDownBase<T, TArithmetic> : UpDownBase
 
         if (_textBoxField != null)
         {
+            _textBoxField.GotKeyboardFocus += OnTextBoxGotKeyboardFocus;
+            _textBoxField.PreviewMouseDown += OnTextBoxPreviewMouseDown;
+            _textBoxField.PreviewTextInput += OnTextBoxPreviewTextInput;
             _textBoxField.TextChanged += OnTextBoxTextChanged;
             _textBoxField.LostFocus += OnTextBoxLostFocus;
-            _textBoxField.Text = Convert.ToString(Value, CultureInfo.CurrentCulture);
+            _textBoxField.Text = FormatValue(Value);
         }
 
+    }
+
+    private void OnTextBoxPreviewTextInput(object sender, TextCompositionEventArgs e)
+    {
+        if (e == null) return;
+
+        var numberFormat = CultureInfo.CurrentCulture.NumberFormat;
+
+        // Restrict input keys
+        if (_textBoxField is { } textBoxField)
+        {
+            // For hexadecimal, validate HEX digits
+            if (Hexadecimal)
+            {
+                if (e.Text.Length > 0 && !Uri.IsHexDigit(e.Text[0]))
+                {
+                    e.Handled = true;
+                    return;
+                }
+            }
+            // Otherwise, allow/control sign, decimal separator, and digits
+            else
+            {
+                if (e.Text == numberFormat.NegativeSign)
+                {
+                    if (textBoxField.CaretIndex != 0 || textBoxField.Text.IndexOf(numberFormat.NegativeSign, StringComparison.CurrentCulture) > -1)
+                    {
+                        e.Handled = true;
+                        return;
+                    }
+                }
+                else if (e.Text == numberFormat.NumberDecimalSeparator)
+                {
+                    if (textBoxField.Text.IndexOf(numberFormat.NumberDecimalSeparator, StringComparison.CurrentCulture) > -1)
+                    {
+                        e.Handled = true;
+                        return;
+                    }
+                }
+                else if (e.Text.Length > 0 && !char.IsDigit(e.Text[0]))
+                {
+                    e.Handled = true;
+                    return;
+                }
+            }
+        }
+    }
+
+    private void OnTextBoxGotKeyboardFocus(object sender, KeyboardFocusChangedEventArgs e)
+    {
+        if (SelectAllOnFocus) SelectAll();
+    }
+
+    private void OnTextBoxPreviewMouseDown(object sender, MouseButtonEventArgs e)
+    {
+        // When SelectAllOnFocus is enabled and the text box does not have focus,
+        // focus the text area when interacting outside the UpDown buttons.
+        if (SelectAllOnFocus
+            && _textBoxField?.IsFocused == false
+            && e.Source is not ContentPresenter)
+        {
+            _textBoxField.Focus();
+            e.Handled = true;
+        }
     }
 
     private void OnTextBoxLostFocus(object sender, EventArgs e)
     {
-        if (_textBoxField is { } textBoxField)
-        {
-            textBoxField.Text = Convert.ToString(Value, CultureInfo.CurrentCulture);
-        }
+        UpdateValue();
     }
 
     private void OnTextBoxTextChanged(object sender, EventArgs e)
     {
-        if (_textBoxField is { } textBoxField)
+        _isTextChanged = true;
+    }
+
+    private void UpdateValue()
+    {
+        if (_isTextChanged && _textBoxField is { } textBoxField)
         {
-            if (TryParse(textBoxField.Text, CultureInfo.CurrentCulture, out T? value))
+            // Convert hexadecimal string to number (excluding double/decimal/float)
+            if (Hexadecimal && typeof(T) != typeof(double) && typeof(T) != typeof(decimal) && typeof(T) != typeof(float))
             {
-                _isTextChanging = true;
-                SetCurrentValue(ValueProperty, ClampValue(value));
-                _isTextChanging = false;
+                if (ulong.TryParse(textBoxField.Text, NumberStyles.HexNumber, CultureInfo.CurrentCulture, out ulong ulongVal))
+                {
+                    try
+                    {
+                        var value = (T)Convert.ChangeType(ulongVal, typeof(T), CultureInfo.CurrentCulture);
+                        SetCurrentValue(ValueProperty, ClampValue(value));
+                    }
+                    catch
+                    {
+                    }
+                }
             }
+            // Convert regular string to number
+            else
+            {
+                if (TryParse(textBoxField.Text, CultureInfo.CurrentCulture, out T? value))
+                {
+                    value = ApplyDecimalPlaces(value);
+                    SetCurrentValue(ValueProperty, ClampValue(value));
+                }
+            }
+            // Although not updated, this is to eliminate display irregularities.
+            _textBoxField.Text = FormatValue(Value);
+            _isTextChanged = false;
         }
+    }
+
+    private string FormatValue(T value)
+    {
+        int digits = DecimalPlaces;
+        string format;
+
+        // Create format for hexadecimal (excluding double/decimal/float)
+        if (Hexadecimal && value is not (double or decimal or float))
+        {
+            format = digits <= 0 ? "X" : $"X{digits}";
+        }
+        // Create decimal format (negative digit count is invalid)
+        else
+        {
+            if (digits < 0)
+            {
+                return Convert.ToString(value, CultureInfo.CurrentCulture) ?? string.Empty;
+            }
+            format = $"F{digits}";
+        }
+
+        // If value supports formatting, apply the format
+        if (value is IFormattable formattable)
+        {
+            return formattable.ToString(format, CultureInfo.CurrentCulture);
+        }
+        // Fallback
+        return Convert.ToString(value, CultureInfo.CurrentCulture) ?? string.Empty;
+    }
+
+    private T ApplyDecimalPlaces(T value)
+    {
+        // Round decimal places
+        int digits = DecimalPlaces;
+        if (digits < 0) return value;
+
+        return value switch
+        {
+            double d => (T)(object)Math.Round(d, digits),
+            decimal d => (T)(object)Math.Round(d, digits),
+            float d => (T)(object)Math.Round(d, digits),
+            _ => value
+        };
     }
 
     private void IncreaseButtonOnClick(object sender, RoutedEventArgs e) => OnIncrease();
 
     private void DecreaseButtonOnClick(object sender, RoutedEventArgs e) => OnDecrease();
 
-    private void OnIncrease() => SetCurrentValue(ValueProperty, Clamp(Add(Value, ValueStep), Minimum, Maximum));
+    private void OnIncrease()
+    {
+        UpdateValue();
+        SetCurrentValue(ValueProperty, Clamp(Add(Value, ValueStep), Minimum, Maximum));
+    }
 
-    private void OnDecrease() => SetCurrentValue(ValueProperty, Clamp(Subtract(Value, ValueStep), Minimum, Maximum));
+    private void OnDecrease()
+    {
+        UpdateValue();
+        SetCurrentValue(ValueProperty, Clamp(Subtract(Value, ValueStep), Minimum, Maximum));
+    }
 
     private T ClampValue(T value)
         => Clamp(value, Minimum, Maximum);
@@ -276,6 +470,13 @@ public class UpDownBase<T, TArithmetic> : UpDownBase
         else if (e.Key == Key.Down)
         {
             OnDecrease();
+            e.Handled = true;
+        }
+        else if (e.Key == Key.Enter)
+        {
+            // On Enter key press, update the value and select all text
+            UpdateValue();
+            if (SelectAllOnFocus) SelectAll();
             e.Handled = true;
         }
         base.OnPreviewKeyDown(e);
@@ -304,6 +505,22 @@ public class UpDownBase<T, TArithmetic> : UpDownBase
 [TemplatePart(Name = TextBoxPartName, Type = typeof(TextBox))]
 public class UpDownBase : Control
 {
+    #region DependencyProperties
+
+    #region DependencyProperty : IsEditable
+    public bool IsEditable
+    {
+        get => (bool)GetValue(IsEditableProperty);
+        set => SetValue(IsEditableProperty, value);
+    }
+
+    public static readonly DependencyProperty IsEditableProperty =
+        DependencyProperty.Register(nameof(IsEditable), typeof(bool), typeof(UpDownBase), new PropertyMetadata(true));
+
+    #endregion
+
+    #endregion DependencyProperties
+
     public const string IncreaseButtonPartName = "PART_IncreaseButton";
     public const string DecreaseButtonPartName = "PART_DecreaseButton";
     public const string TextBoxPartName = "PART_TextBox";

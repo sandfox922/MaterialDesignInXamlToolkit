@@ -46,6 +46,13 @@
   <Style TargetType="{x:Type local:DecimalUpDown}" BasedOn="{StaticResource MaterialDesignNumericUpDown}" />
   <Style TargetType="{x:Type local:LongUpDown}" BasedOn="{StaticResource MaterialDesignNumericUpDown}" />
   <Style TargetType="{x:Type local:DoubleUpDown}" BasedOn="{StaticResource MaterialDesignNumericUpDown}" />
+  <Style TargetType="{x:Type local:HexByteUpDown}" BasedOn="{StaticResource MaterialDesignNumericUpDown}" />
+  <Style TargetType="{x:Type local:HexShortUpDown}" BasedOn="{StaticResource MaterialDesignNumericUpDown}" />
+  <Style TargetType="{x:Type local:HexIntUpDown}" BasedOn="{StaticResource MaterialDesignNumericUpDown}" />
+  <Style TargetType="{x:Type local:HexLongUpDown}" BasedOn="{StaticResource MaterialDesignNumericUpDown}" />
+  <Style TargetType="{x:Type local:HexUshortUpDown}" BasedOn="{StaticResource MaterialDesignNumericUpDown}" />
+  <Style TargetType="{x:Type local:HexUintUpDown}" BasedOn="{StaticResource MaterialDesignNumericUpDown}" />
+  <Style TargetType="{x:Type local:HexUlongUpDown}" BasedOn="{StaticResource MaterialDesignNumericUpDown}" />
 
   <system:Boolean x:Key="True">True</system:Boolean>
 
